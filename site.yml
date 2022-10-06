@@ -35,7 +35,7 @@
       failed_when: create_db.rc != 0 and create_db.rc !=82
       changed_when: create_db.rc == 0
 - name: Install Vector
-  hosts: clickhouse
+  hosts: vector
   tasks:
     - name: Get Vector archive
       ansible.builtin.get_url:
@@ -67,3 +67,40 @@
         name: vector
         state: started
         daemon_reload: true
+- name: Install Lighthouse
+  hosts: lighthouse
+  become: true
+  handlers:
+    - name: Restart Nginx
+      become: true
+      service:
+        name: nginx
+        state: restarted
+  tasks:
+    - name: Add Nginx repo
+      template:
+        src: nginx.repo.j2
+        dest: /etc/yum.repos.d/nginx.repo
+    - name: Install Nginx and Unzip
+      ansible.builtin.yum:
+        name:
+          - nginx
+          - unzip
+        state: present
+    - name: Create directory
+      ansible.builtin.file:
+        path: "{{ document_root }}"
+        state: directory
+        mode: '0755'
+    - name: Unarchive Lighthouse archive
+      ansible.builtin.unarchive:
+        src: https://github.com/VKCOM/lighthouse/archive/refs/heads/master.zip
+        dest: "{{ document_root }}"
+        remote_src: true
+        setype: httpd_sys_content_t
+    - name: Apply Nginx template
+      template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/conf.d/lighthouse.conf
+        mode: '0644'
+      notify: Restart Nginx

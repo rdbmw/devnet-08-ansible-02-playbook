@@ -1,0 +1,3 @@
+---
+document_root: "/var/www/html"
+app_dir: "lighthouse-master"
